@@ -8,6 +8,7 @@ import hashlib
 import os
 import random
 import smtplib
+import socket
 import ssl
 from email.message import EmailMessage
 
@@ -44,10 +45,24 @@ def send_otp_email(to_email: str, code: str) -> None:
     )
 
     context = ssl.create_default_context()
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls(context=context)
-        server.login(smtp_email, smtp_app_password)
-        server.send_message(msg)
+
+    # Some hosts (Render free tier included) have no outbound IPv6 route.
+    # smtp.gmail.com resolves to both A and AAAA records, and smtplib may pick
+    # the IPv6 one and fail with "Network is unreachable". Force IPv4 resolution
+    # for the duration of this call only; TLS still verifies against the hostname.
+    original_getaddrinfo = socket.getaddrinfo
+
+    def _ipv4_only_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        return original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+
+    socket.getaddrinfo = _ipv4_only_getaddrinfo
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+            server.starttls(context=context)
+            server.login(smtp_email, smtp_app_password)
+            server.send_message(msg)
+    finally:
+        socket.getaddrinfo = original_getaddrinfo
 
 
 def make_session_token(user_id: int, email: str) -> str:
