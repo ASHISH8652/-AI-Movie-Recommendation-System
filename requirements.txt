@@ -1,0 +1,12 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-dotenv==1.0.1
+requests==2.32.3
+scikit-learn==1.5.1
+numpy==1.26.4
+joblib==1.4.2
+pydantic==2.9.2
+SQLAlchemy==2.0.34
+psycopg2-binary==2.9.9
+itsdangerous==2.2.0
+python-version==3.12.7

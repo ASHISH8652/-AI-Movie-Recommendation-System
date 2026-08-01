@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineMatch — Find tonight's watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0C14; --surface:#15172A; --surface-2:#1C1F38; --line:#2A2D4A;
+    --pink:#FF3E7F; --teal:#2EE6C5; --gold:#F5B942; --text:#F3F2ED; --muted:#8A8DA6;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:
+      radial-gradient(circle at 15% 0%, rgba(255,62,127,.12), transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(46,230,197,.10), transparent 40%), var(--bg);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh;}
+  .display{font-family:'Bebas Neue',sans-serif; letter-spacing:.03em;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  a{color:inherit;}
+  ::selection{background:var(--pink); color:#fff;}
+
+  header{display:flex; align-items:center; justify-content:space-between; padding:22px clamp(16px,4vw,48px) 8px;}
+  .logo{font-size:32px; display:flex; align-items:baseline; gap:10px;}
+  .logo span{color:var(--pink);}
+  .logo small{font-family:'Inter'; font-size:11px; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; font-weight:600;}
+  .account{display:flex; align-items:center; gap:12px; font-size:13px; color:var(--muted);}
+  .account button{background:var(--surface-2); border:1px solid var(--line); color:var(--text); padding:7px 13px;
+    border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;}
+
+  .app{display:none;}
+  .app.show{display:block;}
+
+  .hero{padding:18px clamp(16px,4vw,48px) 6px;}
+  .hero h1{font-size:clamp(40px,7vw,84px); line-height:.92; margin:0 0 6px;}
+  .hero h1 em{font-style:normal; color:var(--pink);}
+  .hero p{color:var(--muted); font-size:16px; margin:0 0 22px; max-width:560px;}
+
+  .moods{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:22px;}
+  .chip{position:relative; border:1.5px dashed var(--line); background:var(--surface); color:var(--text);
+    padding:9px 16px 9px 30px; border-radius:100px; font-size:13.5px; font-weight:600; cursor:pointer;
+    transition:.15s ease; display:flex; align-items:center; gap:8px;}
+  .chip::before{content:''; position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    width:6px; height:6px; border-radius:50%; background:var(--bg); border:1.5px dashed var(--line);}
+  .chip:hover{border-color:var(--teal); color:var(--teal);}
+  .chip.active{background:var(--pink); border-color:var(--pink); border-style:solid; color:#fff;}
+  .chip.active::before{background:#fff; border-color:#fff;}
+
+  .filterbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    padding:14px clamp(16px,4vw,48px); background:var(--surface);
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20; backdrop-filter:blur(10px);}
+  .seg{display:flex; background:var(--surface-2); border-radius:10px; padding:3px; gap:2px;}
+  .seg button{border:none; background:transparent; color:var(--muted); padding:8px 13px; border-radius:8px;
+    font-size:13px; font-weight:700; cursor:pointer; font-family:'Inter';}
+  .seg button.active{background:var(--pink); color:#fff;}
+  select, .search-input, .text-input{background:var(--surface-2); color:var(--text); border:1px solid var(--line);
+    border-radius:8px; padding:9px 12px; font-size:13px; font-family:'Inter'; font-weight:600;}
+  select:focus, .search-input:focus, .text-input:focus{outline:2px solid var(--teal);}
+  .search-input{flex:1; min-width:160px;}
+  .search-wrap{display:flex; align-items:center; gap:8px; flex:1; min-width:220px;}
+  .go-btn{background:var(--teal); color:#0B0C14; border:none; border-radius:8px; padding:9px 16px;
+    font-weight:800; font-size:13px; cursor:pointer;}
+
+  .section{padding:26px clamp(16px,4vw,48px);}
+  .section-title{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:6px;}
+  .section-title h2{font-size:26px; margin:0; font-family:'Bebas Neue'; letter-spacing:.02em;}
+  .section-title .tag{color:var(--muted); font-size:12.5px;}
+  .personalized-tag{color:var(--teal); font-weight:700;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(168px,1fr)); gap:18px;}
+  .ticket{background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    cursor:pointer; position:relative; transition:transform .15s ease, border-color .15s ease;}
+  .ticket:hover{transform:translateY(-4px); border-color:var(--pink);}
+  .poster-wrap{position:relative; aspect-ratio:2/3; background:var(--surface-2);}
+  .poster-wrap img{width:100%; height:100%; object-fit:cover; display:block;}
+  .no-poster{display:flex; align-items:center; justify-content:center; height:100%; color:var(--muted); font-size:12px; text-align:center; padding:10px;}
+  .score-badge{position:absolute; top:8px; right:8px; background:var(--bg); border:1.5px solid var(--gold); color:var(--gold);
+    font-family:'JetBrains Mono'; font-weight:700; font-size:12px; border-radius:50%; width:38px; height:38px;
+    display:flex; align-items:center; justify-content:center;}
+  .score-badge.personalized{border-color:var(--teal); color:var(--teal);}
+  .perf{border-top:1.5px dashed var(--line); position:relative; margin:0;}
+  .perf::before, .perf::after{content:''; position:absolute; top:-6px; width:12px; height:12px; border-radius:50%; background:var(--bg);}
+  .perf::before{left:-6px;} .perf::after{right:-6px;}
+  .ticket-body{padding:10px 12px 12px;}
+  .ticket-body h3{font-size:13.5px; margin:0 0 4px; font-weight:700; line-height:1.25;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .meta-row{display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:11px;}
+  .lang-badge{text-transform:uppercase; font-family:'JetBrains Mono'; background:var(--surface-2);
+    padding:2px 6px; border-radius:4px; font-size:10px; color:var(--teal);}
+
+  .empty, .loading{color:var(--muted); font-size:14px; padding:20px 0;}
+
+  .model-panel{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px;
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;}
+  .model-panel .left{font-size:13.5px; color:var(--muted); max-width:520px;}
+  .model-panel .left b{color:var(--text);}
+  .retrain-btn{background:var(--surface-2); border:1px solid var(--line); color:var(--text); padding:9px 15px;
+    border-radius:8px; font-weight:700; font-size:12.5px; cursor:pointer;}
+
+  .vibe-panel{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px;}
+  .vibe-row{display:grid; grid-template-columns:120px 1fr 40px; align-items:center; gap:10px; margin-bottom:10px; font-size:13px;}
+  .vibe-bar-track{background:var(--surface-2); border-radius:6px; height:10px; overflow:hidden;}
+  .vibe-bar-fill{height:100%; background:linear-gradient(90deg,var(--pink),var(--gold)); border-radius:6px;}
+  .vibe-empty{color:var(--muted); font-size:13px;}
+
+  .overlay{position:fixed; inset:0; background:rgba(6,7,14,.85); backdrop-filter:blur(4px);
+    display:none; align-items:flex-start; justify-content:center; z-index:100; padding:40px 16px; overflow-y:auto;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--surface); border:1px solid var(--line); border-radius:16px; max-width:720px; width:100%; overflow:hidden; position:relative;}
+  .modal-close{position:absolute; top:14px; right:14px; background:var(--bg); border:1px solid var(--line);
+    color:var(--text); width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:16px; z-index:2;}
+  .modal-hero{display:flex; gap:0; flex-wrap:wrap;}
+  .modal-poster{width:220px; flex-shrink:0; background:var(--surface-2);}
+  .modal-poster img{width:100%; display:block;}
+  .modal-info{padding:22px; flex:1; min-width:260px;}
+  .modal-info h2{font-family:'Bebas Neue'; font-size:30px; margin:0 0 6px; letter-spacing:.01em;}
+  .modal-tags{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;}
+  .modal-tags span{background:var(--surface-2); padding:3px 9px; border-radius:100px; font-size:11.5px; color:var(--muted);}
+  .modal-info p.overview{font-size:13.5px; line-height:1.6; color:#D6D5E3; margin:0 0 16px;}
+  .modal-score{display:flex; align-items:center; gap:22px; margin-bottom:16px; flex-wrap:wrap;}
+  .modal-score .big{font-family:'JetBrains Mono'; font-size:34px; color:var(--gold); font-weight:700;}
+  .modal-score .big.personalized{color:var(--teal);}
+  .modal-score .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;}
+  .modal-actions{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;}
+  .btn{display:inline-flex; align-items:center; gap:6px; padding:11px 16px; border-radius:9px;
+    font-weight:700; font-size:13px; text-decoration:none; border:none; cursor:pointer;}
+  .btn-primary{background:var(--pink); color:#fff;}
+  .btn-secondary{background:var(--surface-2); color:var(--text); border:1px solid var(--line);}
+  .btn:hover{opacity:.88;}
+  .rate-row{border-top:1px solid var(--line); padding-top:16px; display:flex; flex-wrap:wrap; align-items:center; gap:14px;}
+  .likedislike{display:flex; gap:8px;}
+  .likedislike button{background:var(--surface-2); border:1px solid var(--line); color:var(--text);
+    padding:9px 13px; border-radius:9px; font-size:16px; cursor:pointer;}
+  .likedislike button.picked-like{background:var(--teal); color:#0B0C14; border-color:var(--teal);}
+  .likedislike button.picked-dislike{background:var(--pink); color:#fff; border-color:var(--pink);}
+  .stars{display:flex; gap:4px;}
+  .stars span{font-size:20px; cursor:pointer; color:var(--muted);}
+  .stars span.on{color:var(--gold);}
+  .rate-note{color:var(--muted); font-size:11.5px;}
+
+  footer{padding:26px clamp(16px,4vw,48px) 50px; color:var(--muted); font-size:11.5px; border-top:1px solid var(--line); margin-top:20px;}
+
+  /* ---------- login gate ---------- */
+  .login-wrap{min-height:80vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .login-card{background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:36px;
+    max-width:380px; width:100%; text-align:center;}
+  .login-card h1{font-family:'Bebas Neue'; font-size:34px; margin:0 0 4px;}
+  .login-card h1 span{color:var(--pink);}
+  .login-card p{color:var(--muted); font-size:13.5px; margin:0 0 22px;}
+  .login-card input{width:100%; margin-bottom:12px; text-align:center; letter-spacing:.02em;}
+  .login-card .otp-input{letter-spacing:.4em; font-family:'JetBrains Mono'; font-size:18px;}
+  .login-card .btn-primary{width:100%; justify-content:center; padding:12px;}
+  .login-error{color:var(--pink); font-size:12.5px; margin-top:10px; min-height:16px;}
+  .login-note{color:var(--muted); font-size:11.5px; margin-top:14px;}
+  .login-note button{background:none; border:none; color:var(--teal); cursor:pointer; font-size:11.5px; padding:0; text-decoration:underline;}
+
+  @media (max-width:520px){
+    .grid{grid-template-columns:repeat(auto-fill, minmax(130px,1fr));}
+    .modal-poster{width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">CINE<span>MATCH</span><small style="margin-left:6px;">personalized · real-time · self-hosted</small></div>
+  <div class="account" id="accountBox"></div>
+</header>
+
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <h1>CINE<span>MATCH</span></h1>
+    <p>Sign in with your email — we'll send a 6-digit code, no password to remember.</p>
+
+    <div id="emailStep">
+      <input class="text-input" id="emailInput" type="email" placeholder="you@example.com" />
+      <button class="btn btn-primary" id="sendCodeBtn">Send code</button>
+    </div>
+
+    <div id="otpStep" style="display:none;">
+      <input class="text-input otp-input" id="otpInput" maxlength="6" placeholder="••••••" />
+      <button class="btn btn-primary" id="verifyBtn">Verify &amp; continue</button>
+      <div class="login-note">Sent to <b id="otpEmailLabel"></b> — <button id="changeEmailBtn">use a different email</button></div>
+    </div>
+
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <section class="hero">
+    <h1>What's tonight's<br><em>vibe?</em></h1>
+    <p>Pick a mood, a type, and an era. CineMatch pulls live data and, once it's learned your taste, ranks everything with your own trained model.</p>
+    <div class="moods" id="moodChips"></div>
+  </section>
+
+  <div class="filterbar">
+    <div class="seg" id="typeSeg"></div>
+    <div class="seg" id="eraSeg"></div>
+    <select id="langSelect"></select>
+    <div class="search-wrap">
+      <input class="search-input" id="searchInput" placeholder="Search any title…" />
+      <button class="go-btn" id="searchBtn">Search</button>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="section-title">
+      <h2 id="resultsTitle">Trending This Week</h2>
+      <span class="tag" id="resultsTag">live from TMDB</span>
+    </div>
+    <div id="grid" class="grid"><div class="loading">Loading real movie &amp; show data…</div></div>
+  </section>
+
+  <section class="section">
+    <div class="section-title"><h2>Your Model</h2></div>
+    <div class="model-panel" id="modelPanel"></div>
+  </section>
+
+  <section class="section">
+    <div class="section-title">
+      <h2>Your Weekly Vibe</h2>
+      <span class="tag">tied to your account · resets Monday</span>
+    </div>
+    <div class="vibe-panel" id="vibePanel"></div>
+  </section>
+
+  <footer>
+    CineMatch is a personal project built on the TMDB API. This product uses the TMDB API but is not endorsed or certified by TMDB.
+    Your ratings and viewing signals are stored under your account and used only to personalize your own recommendations.
+  </footer>
+</div>
+
+<div class="overlay" id="overlay"><div class="modal" id="modalBody"></div></div>
+
+<script>
+const MOODS = [
+  {key:'', label:'✨ Any mood'}, {key:'comedy', label:'😂 Comedy'}, {key:'action', label:'💥 Action'},
+  {key:'fighting', label:'🥊 Fighting'}, {key:'horror', label:'👻 Horror / Ghost'},
+  {key:'emotional', label:'😢 Emotional / Sad'}, {key:'romance', label:'❤️ Romance'},
+  {key:'thriller', label:'😱 Thriller'}, {key:'scifi', label:'🚀 Sci-Fi'}, {key:'fantasy', label:'🧙 Fantasy'},
+  {key:'family', label:'👨‍👩‍👧 Family'}, {key:'documentary', label:'🎥 Documentary'},
+];
+const TYPES = [
+  {key:'movie', label:'🎬 Movies'}, {key:'tv', label:'📺 Series'},
+  {key:'anime', label:'🎌 Anime'}, {key:'kdrama', label:'🇰🇷 K-Drama'},
+];
+const ERAS = [{key:'latest', label:'Latest'}, {key:'classic', label:'Classics'}, {key:'any', label:'Anytime'}];
+const LANGS = [
+  ['','Any language'],['en','English'],['hi','Hindi'],['ko','Korean'],['ja','Japanese'],
+  ['es','Spanish'],['ta','Tamil'],['te','Telugu'],['zh','Chinese'],['fr','French'],
+  ['de','German'],['pa','Punjabi'],['bn','Bengali'],['or','Odia'],['mr','Marathi'],
+  ['gu','Gujarati'],['kn','Kannada'],['ml','Malayalam'],['ur','Urdu'],['as','Assamese'],
+  ['it','Italian'],['pt','Portuguese'],['ar','Arabic'],['ru','Russian'],['th','Thai'],
+  ['vi','Vietnamese'],['id','Indonesian'],
+];
+
+let state = { type:'movie', mood:'', era:'latest', lang:'', query:'' };
+
+function el(tag, cls, html){ const e = document.createElement(tag); if(cls) e.className = cls; if(html!==undefined) e.innerHTML = html; return e; }
+function api(path, opts){ return fetch(path, {credentials:'same-origin', ...opts}); }
+
+/* ---------- auth gate ---------- */
+let currentEmail = '';
+
+async function checkAuth(){
+  const r = await api('/api/auth/me');
+  const data = await r.json();
+  if(data.authenticated){
+    showApp(data.email);
+  } else {
+    document.getElementById('loginWrap').style.display = 'flex';
+    document.getElementById('app').classList.remove('show');
+  }
+}
+
+document.getElementById('sendCodeBtn').onclick = async ()=>{
+  const email = document.getElementById('emailInput').value.trim();
+  const errBox = document.getElementById('loginError');
+  errBox.textContent = '';
+  if(!email || !email.includes('@')){ errBox.textContent = 'Enter a valid email address.'; return; }
+  document.getElementById('sendCodeBtn').textContent = 'Sending…';
+  try{
+    const r = await api('/api/auth/request-otp', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email})});
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.detail || 'Could not send code');
+    currentEmail = email;
+    document.getElementById('otpEmailLabel').textContent = email;
+    document.getElementById('emailStep').style.display = 'none';
+    document.getElementById('otpStep').style.display = 'block';
+    if(data.dev_code){
+      errBox.style.color = 'var(--teal)';
+      errBox.textContent = `Email sending isn't working yet, so here's your code for now: ${data.dev_code}`;
+      document.getElementById('otpInput').value = data.dev_code;
+    }
+  }catch(e){
+    errBox.textContent = e.message;
+  }
+  document.getElementById('sendCodeBtn').textContent = 'Send code';
+};
+
+document.getElementById('changeEmailBtn').onclick = ()=>{
+  document.getElementById('otpStep').style.display = 'none';
+  document.getElementById('emailStep').style.display = 'block';
+  document.getElementById('loginError').textContent = '';
+};
+
+document.getElementById('verifyBtn').onclick = async ()=>{
+  const code = document.getElementById('otpInput').value.trim();
+  const errBox = document.getElementById('loginError');
+  errBox.textContent = '';
+  if(code.length !== 6){ errBox.textContent = 'Enter the 6-digit code.'; return; }
+  try{
+    const r = await api('/api/auth/verify-otp', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:currentEmail, code})});
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.detail || 'Verification failed');
+    showApp(data.email);
+  }catch(e){
+    errBox.textContent = e.message;
+  }
+};
+
+function showApp(email){
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('accountBox').innerHTML = `<span>${email}</span><button id="logoutBtn">Log out</button>`;
+  document.getElementById('logoutBtn').onclick = async ()=>{
+    await api('/api/auth/logout', {method:'POST'});
+    location.reload();
+  };
+  initApp();
+}
+
+let appInitialized = false;
+function initApp(){
+  if(appInitialized) return;
+  appInitialized = true;
+  buildChips();
+  loadModelStatus();
+  loadVibe();
+  loadResults();
+}
+
+/* ---------- app UI (unchanged logic, now behind login) ---------- */
+function buildChips(){
+  const moodWrap = document.getElementById('moodChips');
+  MOODS.forEach(m=>{
+    const c = el('div','chip'+(state.mood===m.key?' active':''), m.label);
+    c.dataset.key = m.key;
+    c.onclick = ()=>{ state.mood = m.key; renderMoodChips(); loadResults(); };
+    moodWrap.appendChild(c);
+  });
+  const typeSeg = document.getElementById('typeSeg');
+  TYPES.forEach(t=>{
+    const b = el('button', t.key===state.type?'active':'', t.label);
+    b.dataset.key = t.key;
+    b.onclick = ()=>{ state.type = t.key; renderTypeSeg(); loadResults(); };
+    typeSeg.appendChild(b);
+  });
+  const eraSeg = document.getElementById('eraSeg');
+  ERAS.forEach(e=>{
+    const b = el('button', e.key===state.era?'active':'', e.label);
+    b.dataset.key = e.key;
+    b.onclick = ()=>{ state.era = e.key; renderEraSeg(); loadResults(); };
+    eraSeg.appendChild(b);
+  });
+  const langSelect = document.getElementById('langSelect');
+  LANGS.forEach(([code,name])=>{
+    const o = document.createElement('option'); o.value = code; o.textContent = name;
+    langSelect.appendChild(o);
+  });
+  langSelect.onchange = ()=>{ state.lang = langSelect.value; loadResults(); };
+}
+function renderMoodChips(){ document.querySelectorAll('#moodChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.key===state.mood)); }
+function renderTypeSeg(){ document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('active', b.dataset.key===state.type)); }
+function renderEraSeg(){ document.querySelectorAll('#eraSeg button').forEach(b=>b.classList.toggle('active', b.dataset.key===state.era)); }
+
+function titleFor(){
+  if(state.query) return `Results for "${state.query}"`;
+  const t = TYPES.find(x=>x.key===state.type).label;
+  const e = ERAS.find(x=>x.key===state.era).label;
+  const moodLabel = state.mood ? MOODS.find(m=>m.key===state.mood).label.replace(/^\S+\s/,'') : '';
+  return `${t} · ${e}${moodLabel ? ' · '+moodLabel : ''}`;
+}
+
+async function loadResults(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '<div class="loading">Fetching results…</div>';
+  document.getElementById('resultsTitle').textContent = titleFor();
+  try{
+    const params = new URLSearchParams({ type:state.type, mood:state.mood, era:state.era, lang:state.lang, query:state.query });
+    const r = await api(`/api/discover?${params.toString()}`);
+    if(!r.ok) throw new Error('backend error');
+    const data = await r.json();
+    document.getElementById('resultsTag').innerHTML = data.personalized
+      ? '<span class="personalized-tag">● personalized by your model</span>' : 'live from TMDB';
+    renderGrid(data.results || []);
+  }catch(e){
+    grid.innerHTML = '<div class="empty">Could not reach the backend. Make sure the server is running and check its terminal for TMDB errors.</div>';
+    console.error(e);
+  }
+}
+
+function renderGrid(items){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  if(!items.length){
+    grid.innerHTML = '<div class="empty">Nothing matched that combination — try another mood, era, or language.</div>';
+    return;
+  }
+  items.forEach(item=>{
+    const title = item.title || item.name || 'Untitled';
+    const poster = item.poster_path ? `https://image.tmdb.org/t/p/w342${item.poster_path}` : null;
+    const isPersonalized = item.personalized_score !== null && item.personalized_score !== undefined;
+    const score = isPersonalized ? item.personalized_score : item.entertainment_score;
+    const lang = (item.original_language||'').toUpperCase();
+    const year = (item.release_date||item.first_air_date||'').slice(0,4);
+
+    const card = el('div','ticket');
+    card.innerHTML = `
+      <div class="poster-wrap">
+        ${poster ? `<img src="${poster}" alt="${title} poster" loading="lazy">` : `<div class="no-poster">${title}</div>`}
+        <div class="score-badge${isPersonalized?' personalized':''}">${score}</div>
+      </div>
+      <div class="perf"></div>
+      <div class="ticket-body">
+        <h3>${title}</h3>
+        <div class="meta-row"><span>${year||'—'}</span><span class="lang-badge">${lang||'—'}</span></div>
+      </div>`;
+    card.onclick = ()=> openModal(item);
+    grid.appendChild(card);
+  });
+}
+
+function baseFeedbackPayload(d, mediaType){
+  return {
+    tmdb_id: d.id, media_type: mediaType, title: d.title || d.name || '',
+    genre_ids: (d.genres||[]).map(g=>g.id), original_language: d.original_language || '',
+    vote_average: d.vote_average || 0, popularity: d.popularity || 0,
+    release_year: parseInt((d.release_date||d.first_air_date||'').slice(0,4)) || null,
+    runtime: d.runtime || (d.episode_run_time && d.episode_run_time[0]) || null,
+    mood_context: state.mood || '',
+  };
+}
+async function sendFeedback(payload){
+  try{ await api('/api/feedback', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); }
+  catch(e){ console.warn('feedback failed', e); }
+  loadModelStatus();
+  loadVibe();
+}
+
+async function openModal(item){
+  const mediaType = item.media_type==='tv' ? 'tv' : 'movie';
+  const overlay = document.getElementById('overlay');
+  const modal = document.getElementById('modalBody');
+  modal.innerHTML = `<button class="modal-close" id="closeModal">✕</button><div class="loading" style="padding:40px;">Loading details…</div>`;
+  overlay.classList.add('show');
+  document.getElementById('closeModal').onclick = closeModal;
+
+  try{
+    const r = await api(`/api/details?media_type=${mediaType}&id=${item.id}`);
+    const d = await r.json();
+    const title = d.title || d.name || 'Untitled';
+    const poster = d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : null;
+    const genres = (d.genres||[]).map(g=>g.name);
+    const year = (d.release_date||d.first_air_date||'').slice(0,4);
+    const runtime = d.runtime ? `${d.runtime} min` : (d.episode_run_time && d.episode_run_time[0] ? `${d.episode_run_time[0]} min/ep` : '');
+    const vids = (d.videos && d.videos.results) || [];
+    const trailer = vids.find(v=>v.site==='YouTube' && v.type==='Trailer') || vids.find(v=>v.site==='YouTube');
+    const providers = d['watch/providers'] && d['watch/providers'].results;
+    const region = providers && (providers['IN'] || providers['US']);
+    const watchLink = region && region.link;
+
+    const isPersonalized = item.personalized_score !== null && item.personalized_score !== undefined;
+    const score = isPersonalized ? item.personalized_score : item.entertainment_score;
+
+    modal.innerHTML = `
+      <button class="modal-close" id="closeModal">✕</button>
+      <div class="modal-hero">
+        <div class="modal-poster">${poster ? `<img src="${poster}" alt="${title} poster">` : ''}</div>
+        <div class="modal-info">
+          <h2>${title}</h2>
+          <div class="modal-tags">
+            ${year?`<span>${year}</span>`:''}${runtime?`<span>${runtime}</span>`:''}
+            <span>${(d.original_language||'').toUpperCase()}</span>
+            ${genres.map(g=>`<span>${g}</span>`).join('')}
+          </div>
+          <p class="overview">${d.overview || 'No synopsis available.'}</p>
+          <div class="modal-score">
+            <div><div class="big${isPersonalized?' personalized':''}">${score}</div><div class="lbl">${isPersonalized?'Your Score':'Entertainment Score'}</div></div>
+          </div>
+          <div class="modal-actions">
+            ${trailer?`<a class="btn btn-primary" target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=${trailer.key}">▶ Watch Trailer</a>`:''}
+            <a class="btn btn-secondary" target="_blank" rel="noopener" href="https://www.themoviedb.org/${mediaType}/${d.id}">🎟 Open on TMDB</a>
+            ${watchLink?`<a class="btn btn-secondary" target="_blank" rel="noopener" href="${watchLink}">📺 Where to Watch</a>`:''}
+          </div>
+          <div class="rate-row">
+            <div class="likedislike">
+              <button id="likeBtn" title="Like">👍</button>
+              <button id="dislikeBtn" title="Dislike">👎</button>
+            </div>
+            <div class="stars" id="stars">
+              ${[1,2,3,4,5].map(n=>`<span data-n="${n}">★</span>`).join('')}
+            </div>
+            <div class="rate-note">Rating trains your model — it gets sharper every time.</div>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('closeModal').onclick = closeModal;
+
+    const payload = baseFeedbackPayload(d, mediaType);
+    sendFeedback({...payload, signal:'click'});
+
+    document.getElementById('likeBtn').onclick = (e)=>{
+      e.target.classList.add('picked-like');
+      document.getElementById('dislikeBtn').classList.remove('picked-dislike');
+      sendFeedback({...payload, signal:'like'});
+    };
+    document.getElementById('dislikeBtn').onclick = (e)=>{
+      e.target.classList.add('picked-dislike');
+      document.getElementById('likeBtn').classList.remove('picked-like');
+      sendFeedback({...payload, signal:'dislike'});
+    };
+    document.querySelectorAll('#stars span').forEach(s=>{
+      s.onclick = ()=>{
+        const n = parseInt(s.dataset.n);
+        document.querySelectorAll('#stars span').forEach((el2,i)=> el2.classList.toggle('on', i < n));
+        sendFeedback({...payload, signal:'rating', rating_value:n});
+      };
+    });
+  }catch(e){
+    modal.innerHTML = `<button class="modal-close" id="closeModal">✕</button><div style="padding:40px;">Could not load details.</div>`;
+    document.getElementById('closeModal').onclick = closeModal;
+  }
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
+
+async function loadModelStatus(){
+  const panel = document.getElementById('modelPanel');
+  try{
+    const r = await api('/api/model/status');
+    const s = await r.json();
+    if(s.trained){
+      panel.innerHTML = `<div class="left">Personalization is <b>active</b> — trained on <b>${s.n_samples}</b> of your signals. Last trained ${new Date(s.updated_at).toLocaleString()}.</div>
+        <button class="retrain-btn" id="retrainBtn">Retrain now</button>`;
+    } else {
+      panel.innerHTML = `<div class="left">${s.reason || 'Rate a few titles to unlock personalized ranking.'} (${s.n_samples||0} signals so far.)</div>
+        <button class="retrain-btn" id="retrainBtn">Retrain now</button>`;
+    }
+    document.getElementById('retrainBtn').onclick = async ()=>{
+      panel.querySelector('.left').textContent = 'Retraining…';
+      await api('/api/model/retrain', {method:'POST'});
+      loadModelStatus();
+      loadResults();
+    };
+  }catch(e){
+    panel.innerHTML = `<div class="left">Could not reach the backend for model status.</div>`;
+  }
+}
+
+async function loadVibe(){
+  const panel = document.getElementById('vibePanel');
+  try{
+    const r = await api('/api/vibe');
+    const data = await r.json();
+    const counts = data.counts || [];
+    if(!counts.length){
+      panel.innerHTML = '<div class="vibe-empty">Search a mood or open a title, and your weekly taste pattern shows up here.</div>';
+      return;
+    }
+    const max = counts[0].c;
+    panel.innerHTML = counts.map(row=>{
+      const label = (MOODS.find(m=>m.key===row.mood_context)||{label:row.mood_context}).label;
+      const pct = Math.round((row.c/max)*100);
+      return `<div class="vibe-row"><div>${label}</div>
+        <div class="vibe-bar-track"><div class="vibe-bar-fill" style="width:${pct}%"></div></div>
+        <div class="mono" style="text-align:right;">${row.c}</div></div>`;
+    }).join('');
+  }catch(e){
+    panel.innerHTML = '<div class="vibe-empty">Could not reach the backend for weekly stats.</div>';
+  }
+}
+
+document.getElementById('searchBtn').onclick = ()=>{ state.query = document.getElementById('searchInput').value.trim(); loadResults(); };
+document.getElementById('searchInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ state.query = e.target.value.trim(); loadResults(); } });
+
+checkAuth();
+</script>
+</body>
+</html>
