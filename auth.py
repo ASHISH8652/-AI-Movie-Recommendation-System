@@ -1,17 +1,16 @@
 """
 Email + OTP authentication.
 - OTP codes are 6 digits, hashed before storage (never stored in plaintext), expire in 10 minutes.
-- Sessions are a signed cookie (itsdangerous) — no server-side session store needed.
-- Sending uses Gmail SMTP with an App Password (never your real Gmail password).
+- Sessions are a signed cookie (itsdangerous) -- no server-side session store needed.
+- Sending uses Resend's HTTP API (https://resend.com) instead of raw SMTP, because
+  most free-tier cloud hosts (Render included) block outbound SMTP ports entirely.
+  HTTP over 443 is never blocked, which is why this approach is reliable in production.
 """
 import hashlib
 import os
 import random
-import smtplib
-import socket
-import ssl
-from email.message import EmailMessage
 
+import requests
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-me-in-production")
@@ -30,39 +29,28 @@ def hash_code(code: str) -> str:
 
 
 def send_otp_email(to_email: str, code: str) -> None:
-    smtp_email = os.getenv("SMTP_EMAIL")
-    smtp_app_password = os.getenv("SMTP_APP_PASSWORD")
-    if not smtp_email or not smtp_app_password:
-        raise RuntimeError("SMTP_EMAIL / SMTP_APP_PASSWORD are not set in .env")
+    api_key = os.getenv("RESEND_API_KEY")
+    if not api_key:
+        raise RuntimeError("RESEND_API_KEY is not set in .env")
 
-    msg = EmailMessage()
-    msg["Subject"] = f"{code} is your CineMatch verification code"
-    msg["From"] = smtp_email
-    msg["To"] = to_email
-    msg.set_content(
-        f"Your CineMatch verification code is: {code}\n\n"
-        f"It expires in {OTP_TTL_MINUTES} minutes. If you didn't request this, you can ignore this email."
+    sender = os.getenv("RESEND_FROM", "CineMatch <onboarding@resend.dev>")
+
+    resp = requests.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "from": sender,
+            "to": [to_email],
+            "subject": f"{code} is your CineMatch verification code",
+            "text": (
+                f"Your CineMatch verification code is: {code}\n\n"
+                f"It expires in {OTP_TTL_MINUTES} minutes. If you didn't request this, ignore this email."
+            ),
+        },
+        timeout=15,
     )
-
-    context = ssl.create_default_context()
-
-    # Some hosts (Render free tier included) have no outbound IPv6 route.
-    # smtp.gmail.com resolves to both A and AAAA records, and smtplib may pick
-    # the IPv6 one and fail with "Network is unreachable". Force IPv4 resolution
-    # for the duration of this call only; TLS still verifies against the hostname.
-    original_getaddrinfo = socket.getaddrinfo
-
-    def _ipv4_only_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-        return original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
-
-    socket.getaddrinfo = _ipv4_only_getaddrinfo
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
-            server.starttls(context=context)
-            server.login(smtp_email, smtp_app_password)
-            server.send_message(msg)
-    finally:
-        socket.getaddrinfo = original_getaddrinfo
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Resend API error ({resp.status_code}): {resp.text}")
 
 
 def make_session_token(user_id: int, email: str) -> str:
