@@ -1,0 +1,41 @@
+CineMatch: AI-Powered Personalized Movie, TV, Anime & K-Drama Recommendation System
+Abstract
+
+CineMatch is a full-stack, AI-powered recommendation system that delivers personalized
+movie, television, anime, and Korean drama suggestions to individual users. Unlike
+conventional recommendation demos that operate on static, pre-loaded sample datasets,
+CineMatch integrates directly with The Movie Database (TMDB) API to source live,
+continuously updated content spanning new releases, decades-old classics, and titles
+across more than twenty-five languages, including major regional Indian languages such
+as Odia, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, and Malayalam.
+
+At the core of the system is a per-user Gradient Boosting Classifier, trained on a
+feature set that blends explicit feedback (thumbs up/down, one-to-five star ratings),
+implicit behavioural signals (titles a user opens), and TMDB's own public content
+signals (genre, popularity, audience rating, release era, spoken language, and media
+type). Each user's model is trained, stored, and served independently, ensuring that
+one person's viewing taste never influences another's recommendations. The model
+retrains automatically as feedback accumulates, progressively sharpening its
+predictions without requiring any manual intervention.
+
+The system is secured using a passwordless, email-based one-time-password (OTP)
+authentication flow, with session management handled through cryptographically signed
+cookies. The backend is implemented in Python using the FastAPI framework, with
+SQLAlchemy providing a database abstraction layer that allows the application to run on
+SQLite in local development and PostgreSQL in production without any code changes. The
+complete application is deployed on Render as a live, publicly accessible web service,
+backed by a managed PostgreSQL database, demonstrating an end-to-end pipeline from data
+ingestion through model training to production deployment.
+
+The personalization pipeline was verified through a controlled experiment: two synthetic
+user profiles with opposite content preferences were trained and evaluated on identical
+held-out titles, producing inverted personalized rankings that confirm genuine,
+user-specific learning rather than a shared or averaged scoring heuristic.
+
+Keywords: Recommendation System, Machine Learning, Gradient Boosting, Personalization,
+FastAPI, TMDB API, OTP Authentication, PostgreSQL, Cloud Deployment, Content-Based
+Filtering.
+
+Live Deployment: https://cinematch-0tab.onrender.com
+Repository: https://github.com/ASHISH8652/-AI-Movie-Recommendation-System
+Author: Ashish Kumar Prusty
